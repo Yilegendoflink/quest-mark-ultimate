@@ -43,3 +43,7 @@ python -m http.server 8000
 ```
 
 或用 VS Code 的 Live Server 扩展打开 `index.html`。
+
+## TODO
+
+1.实装冰火+连线、雷火模式
