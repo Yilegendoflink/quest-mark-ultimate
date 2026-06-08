@@ -25,6 +25,10 @@ const el = {
   timeSeg: document.getElementById('time-seg'),
   setLearn: document.getElementById('set-learn'),
   setGrid: document.getElementById('set-grid'),
+  modal: document.getElementById('result-modal'),
+  resultScore: document.getElementById('result-score'),
+  resultComment: document.getElementById('result-comment'),
+  resultClose: document.getElementById('result-close'),
 };
 
 const TIME_OPTIONS = [10, 5, 3, 'extreme']; // 绝境=随次递减
@@ -74,6 +78,26 @@ function setStatus(text, cls) {
   el.status.className = 'status' + (cls ? ' ' + cls : '');
 }
 
+// ---------- 绝境结束弹窗 ----------
+function tierFor(score) {
+  if (score <= 5) return { cls: 'tier-green', text: '真棒！恭喜你——错得漂亮！' };
+  if (score <= 10) return { cls: 'tier-blue', text: '居然还活着，真是不可置信' };
+  if (score <= 30) return { cls: 'tier-purple', text: '真的假的？！你是不是有点不对劲……？' };
+  return { cls: 'tier-orange', text: '真是没了个劲——你这也太从容了' };
+}
+
+function showResult(score) {
+  const t = tierFor(score);
+  el.resultScore.textContent = score;
+  el.resultScore.className = 'modal-score ' + t.cls;
+  el.resultComment.textContent = t.text;
+  el.modal.classList.remove('hidden');
+}
+
+function hideResult() {
+  el.modal.classList.add('hidden');
+}
+
 // ---------- 回合流程 ----------
 // continueRun=true 表示绝境连胜继续（沿用递减后的时间）；false 为全新开始。
 function startRound(continueRun = false) {
@@ -116,6 +140,7 @@ function resolve(pt) {
       game.autoTimer = setTimeout(() => startRound(true), AUTO_NEXT_MS);
     } else {
       setStatus(`✗ 失败！绝境结束 · 最佳 ${settings.bestStreak}`, 'bad');
+      showResult(game.score); // 弹窗展示最终连击（重置前）
       game.score = 0;
       el.btnStart.textContent = '重新挑战';
     }
@@ -131,6 +156,7 @@ function resolve(pt) {
 
 function restart() {
   cancelAuto();
+  hideResult();
   game.score = 0;
   game.curTime = EXTREME_START;
   game.state = 'idle';
@@ -167,6 +193,9 @@ el.btnStart.addEventListener('click', () => {
   startRound();
 });
 el.btnRestart.addEventListener('click', restart);
+
+el.resultClose.addEventListener('click', hideResult);
+el.modal.addEventListener('click', (e) => { if (e.target === el.modal) hideResult(); });
 
 // ---------- BOSS 形象（固定素材，抠掉黑底） ----------
 function keyOutBlack(img) {

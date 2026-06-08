@@ -154,3 +154,39 @@ body {
   .layout { grid-template-columns: 1fr; }
   .panel { order: 2; }
 }
+
+/* 绝境结束弹窗 */
+.modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(4, 6, 16, 0.78);
+  backdrop-filter: blur(3px);
+  padding: 20px;
+}
+.modal.hidden { display: none; }
+.modal-card {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 18px;
+  padding: 36px 40px 30px;
+  text-align: center;
+  max-width: 520px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  animation: pop 0.28s cubic-bezier(0.2, 1.1, 0.4, 1);
+}
+@keyframes pop { from { transform: scale(0.86); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-label { color: var(--muted); font-size: 15px; letter-spacing: 2px; }
+.modal-score {
+  font-size: 110px; font-weight: 800; line-height: 1.05;
+  margin: 6px 0 4px; text-shadow: 0 0 26px currentColor;
+}
+.modal-comment {
+  font-size: 21px; font-weight: 600; line-height: 1.5;
+  margin: 10px 0 26px; color: var(--text);
+}
+.modal-close { min-width: 140px; padding: 12px 22px; font-size: 16px; }
+
+.tier-green  { color: #46e07a; }
+.tier-blue   { color: #5aa9ff; }
+.tier-purple { color: #b07bff; }
+.tier-orange { color: #ff9d3c; }
