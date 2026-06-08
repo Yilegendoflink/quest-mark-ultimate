@@ -11,11 +11,10 @@ const COLORS = {
   bg: '#0d1020',
   arena: '#161a2e',
   arenaEdge: '#3a4170',
-  grid: 'rgba(255,255,255,0.06)',
-  ice: 'rgba(90,170,255,0.28)',      // 冰预兆填充（蓝）
-  iceEdge: 'rgba(120,190,255,0.7)',
-  thunder: 'rgba(180,110,255,0.26)', // 雷预兆填充（紫）
-  thunderEdge: 'rgba(200,140,255,0.7)',
+  grid: 'rgba(255,255,255,0.08)',
+  tele: 'rgba(150,60,210,0.34)', // 预兆填充：半透明紫（冰雷同色）
+  teleGold: '#ffcf45',           // 描边金
+  teleRed: '#ff3030',            // 描边红
   danger: 'rgba(230,60,60,0.32)',    // 真实危险（结算）
   safe: 'rgba(70,220,120,0.34)',     // 真实安全（结算）
   iceRing: '#6fb7ff',
@@ -34,11 +33,17 @@ function clipArena(ctx, arena, fn) {
   ctx.restore();
 }
 
-function drawArena(ctx, arena, showGrid, slant) {
-  ctx.fillStyle = COLORS.arena;
-  ctx.beginPath();
-  ctx.arc(arena.cx, arena.cy, arena.R, 0, Math.PI * 2);
-  ctx.fill();
+function drawArena(ctx, arena, showGrid, slant, arenaImg) {
+  clipArena(ctx, arena, () => {
+    if (arenaImg && arenaImg.width) {
+      // 贴图覆盖圆的外接正方形（门神.png 已是居中圆形平台）
+      const d = arena.R * 2;
+      ctx.drawImage(arenaImg, arena.cx - arena.R, arena.cy - arena.R, d, d);
+    } else {
+      ctx.fillStyle = COLORS.arena;
+      ctx.fillRect(arena.cx - arena.R, arena.cy - arena.R, arena.R * 2, arena.R * 2);
+    }
+  });
 
   if (showGrid) {
     clipArena(ctx, arena, () => {
@@ -80,39 +85,81 @@ function drawBandLines(ctx, arena, slant) {
   ctx.restore();
 }
 
-/** 填充某个轴对齐象限（裁剪在圆内）。 */
-function fillQuadrant(ctx, arena, q) {
-  const { cx, cy, R } = arena;
-  const x = q === 'TR' || q === 'BR' ? cx : cx - R;
-  const y = q === 'BL' || q === 'BR' ? cy : cy - R;
-  ctx.fillRect(x, y, R, R);
+// 象限扇形（与圆相交后是 90° 扇形）的角度范围。
+const QUADRANT_ARC = {
+  TR: [-Math.PI / 2, 0],
+  BR: [0, Math.PI / 2],
+  BL: [Math.PI / 2, Math.PI],
+  TL: [Math.PI, Math.PI * 1.5],
+};
+
+function traceQuadrant(ctx, arena, q) {
+  const [a, b] = QUADRANT_ARC[q];
+  ctx.moveTo(arena.cx, arena.cy);
+  ctx.arc(arena.cx, arena.cy, arena.R, a, b);
+  ctx.closePath();
 }
 
-function drawIceTelegraph(ctx, arena, iceSet) {
-  clipArena(ctx, arena, () => {
-    ctx.fillStyle = COLORS.ice;
-    for (const q of iceSet) fillQuadrant(ctx, arena, q);
-  });
-}
-
-/** 填充某个 band（旋转坐标系后是一条竖直矩形带）。 */
-function fillBand(ctx, arena, slant, idx) {
+/** 勾勒 band 与圆相交区域的轮廓（两条弦 + 两段圆弧，用折线近似）。 */
+function traceBand(ctx, arena, slant, idx) {
   const { nx, ny } = normalFor(slant);
-  const theta = Math.atan2(ny, nx);
-  const bandW = arena.R / 2;
-  const p0 = -arena.R + idx * bandW;
+  const tx = -ny;
+  const ty = nx; // 切向
+  const R = arena.R;
+  const bandW = R / 2;
+  const p0 = -R + idx * bandW;
+  const p1 = p0 + bandW;
+  const abs = (u, v) => ({ x: arena.cx + u * nx + v * tx, y: arena.cy + u * ny + v * ty });
+  const yEdge = (u) => Math.sqrt(Math.max(0, R * R - u * u));
+  const N = 24;
+
+  let pt = abs(p0, yEdge(p0));
+  ctx.moveTo(pt.x, pt.y);
+  for (let i = 1; i <= N; i++) { // 上缘弧 u: p0→p1
+    const u = p0 + (p1 - p0) * (i / N);
+    pt = abs(u, yEdge(u));
+    ctx.lineTo(pt.x, pt.y);
+  }
+  for (let i = 0; i <= N; i++) { // 下缘弧 u: p1→p0
+    const u = p1 - (p1 - p0) * (i / N);
+    pt = abs(u, -yEdge(u));
+    ctx.lineTo(pt.x, pt.y);
+  }
+  ctx.closePath();
+}
+
+/** 半透明紫填充 + 金/红交替虚线描边（沿轮廓流动）。 */
+function fillStrokeTelegraph(ctx, traceFn, time) {
+  ctx.beginPath();
+  traceFn(ctx);
+  ctx.fillStyle = COLORS.tele;
+  ctx.fill();
+
+  const dash = 16;
+  const offset = (time * 0.05) % (dash * 2);
   ctx.save();
-  ctx.translate(arena.cx, arena.cy);
-  ctx.rotate(theta);
-  ctx.fillRect(p0, -arena.R, bandW, arena.R * 2);
+  ctx.lineWidth = 4;
+  ctx.lineJoin = 'round';
+  ctx.setLineDash([dash, dash]);
+  ctx.lineDashOffset = -offset;
+  ctx.strokeStyle = COLORS.teleGold;
+  ctx.beginPath();
+  traceFn(ctx);
+  ctx.stroke();
+  ctx.lineDashOffset = -offset + dash; // 错位填红，金红交替
+  ctx.strokeStyle = COLORS.teleRed;
+  ctx.beginPath();
+  traceFn(ctx);
+  ctx.stroke();
   ctx.restore();
 }
 
-function drawThunderTelegraph(ctx, arena, slant, thunderSet) {
-  clipArena(ctx, arena, () => {
-    ctx.fillStyle = COLORS.thunder;
-    for (const b of thunderSet) fillBand(ctx, arena, slant, b);
-  });
+function drawIceTelegraph(ctx, arena, iceSet, time) {
+  for (const q of iceSet) fillStrokeTelegraph(ctx, (c) => traceQuadrant(c, arena, q), time);
+}
+
+function drawThunderTelegraph(ctx, arena, slant, thunderSet, time) {
+  for (const b of thunderSet) fillStrokeTelegraph(ctx, (c) => traceBand(c, arena, slant, b), time);
 }
 
 const BOSS_H = 0.56; // BOSS 高度占 R 的比例（放大一圈）
@@ -241,7 +288,7 @@ export function renderScene(ctx, arena, scene) {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  drawArena(ctx, arena, scene.showGrid, round ? round.slant : 1);
+  drawArena(ctx, arena, scene.showGrid, round ? round.slant : 1, scene.arenaImg);
 
   if (!round) {
     drawBoss(ctx, arena, scene.bossImg);
@@ -249,8 +296,8 @@ export function renderScene(ctx, arena, scene) {
   }
 
   // 预兆填充（showing 与 resolved 都显示）
-  drawIceTelegraph(ctx, arena, round.iceSet);
-  drawThunderTelegraph(ctx, arena, round.slant, round.thunderSet);
+  drawIceTelegraph(ctx, arena, round.iceSet, scene.time);
+  drawThunderTelegraph(ctx, arena, round.slant, round.thunderSet, scene.time);
 
   if (scene.state === 'resolved') {
     drawResolution(ctx, arena, round);

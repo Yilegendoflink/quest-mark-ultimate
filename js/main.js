@@ -36,8 +36,10 @@ const AUTO_NEXT_MS = 800;   // 绝境成功后自动下一题延时
 let settings = loadSettings();
 if (!TIME_OPTIONS.includes(settings.resolveTime)) settings.resolveTime = 5;
 let bossImg = null; // 处理后的 BOSS 精灵（已抠掉黑底的离屏 canvas）
+let arenaImg = null; // 场地背景贴图
 
 const BOSS_SRC = 'assets/png/凯夫卡.png';
+const ARENA_SRC = 'assets/png/门神.png';
 
 const game = {
   state: 'idle', // idle | showing | resolved
@@ -197,6 +199,13 @@ function loadBoss() {
   img.src = encodeURI(BOSS_SRC);
 }
 
+function loadArena() {
+  const img = new Image();
+  img.onload = () => { arenaImg = img; };
+  img.onerror = () => { arenaImg = null; };
+  img.src = encodeURI(ARENA_SRC);
+}
+
 // ---------- 设置 ----------
 function syncSettingsUi() {
   for (const btn of el.timeSeg.querySelectorAll('.seg-btn')) {
@@ -240,9 +249,11 @@ function loop(now) {
     state: game.state,
     round: game.round,
     angle: (now / 1000) * BALL_SPEED,
+    time: now,
     click: game.click,
     correct: game.correct,
     bossImg,
+    arenaImg,
     showGrid: settings.showGrid,
     learn: settings.learnMode,
   });
@@ -253,5 +264,6 @@ function loop(now) {
 // ---------- 启动 ----------
 syncSettingsUi();
 loadBoss();
+loadArena();
 restart();
 requestAnimationFrame(loop);
