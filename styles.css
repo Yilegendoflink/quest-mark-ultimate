@@ -1,0 +1,156 @@
+:root {
+  --bg: #0a0c18;
+  --panel: #141826;
+  --panel-edge: #262c44;
+  --text: #e6e8f4;
+  --muted: #9aa0c0;
+  --ice: #6fb7ff;
+  --thunder: #c187ff;
+  --true: #ffffff;
+  --false: #ff4d4d;
+  --safe: #5cff9a;
+  --primary: #4d7cff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 800px at 50% -10%, #161a30, var(--bg));
+  color: var(--text);
+  font-family: system-ui, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+.app { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+
+.topbar h1 { margin: 0; font-size: 22px; }
+.topbar .sub { margin: 4px 0 16px; color: var(--muted); font-size: 14px; }
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.stage-wrap { min-width: 0; }
+
+.countdown {
+  height: 8px;
+  border-radius: 6px;
+  background: #20253c;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.countdown-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--ice), var(--thunder));
+  transition: width 60ms linear;
+}
+
+#stage {
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1 / 1;
+  display: block;
+  margin: 0 auto;
+  border-radius: 50%;
+  cursor: crosshair;
+  touch-action: none;
+  box-shadow: 0 0 0 1px var(--panel-edge), 0 12px 40px rgba(0,0,0,0.5);
+}
+
+.status {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  min-height: 24px;
+  margin: 14px 0 10px;
+  color: var(--muted);
+}
+.status.go { color: var(--ice); }
+.status.ok { color: var(--safe); }
+.status.bad { color: var(--false); }
+
+.controls { display: flex; gap: 10px; justify-content: center; }
+.hud {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.hud b { color: var(--text); font-size: 17px; }
+
+.btn {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--primary); }
+.btn.primary { background: var(--primary); border-color: var(--primary); }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 12px;
+  padding: 16px;
+}
+.panel h2 { margin: 0 0 12px; font-size: 16px; }
+.panel h3 { margin: 18px 0 8px; font-size: 14px; color: var(--muted); }
+
+/* 难度分段按钮 */
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.seg-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; min-height: 56px; padding: 8px;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--panel-edge); border-radius: 10px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.seg-btn small { font-size: 12px; font-weight: 400; color: var(--muted); }
+.seg-btn:hover { border-color: var(--primary); }
+.seg-btn.active {
+  background: var(--primary); border-color: var(--primary); color: #fff;
+}
+.seg-btn.active small { color: rgba(255,255,255,0.85); }
+
+/* 大开关按钮（手机友好） */
+.toggles { display: flex; flex-direction: column; gap: 10px; }
+.toggle-btn {
+  display: flex; flex-direction: column; gap: 2px;
+  min-height: 52px; padding: 8px 14px; text-align: left;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--panel-edge); border-radius: 10px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.toggle-btn small { font-size: 12px; font-weight: 400; color: var(--muted); }
+.toggle-btn::after {
+  content: '关'; position: absolute; right: 14px;
+  align-self: center; font-size: 12px; color: var(--muted);
+}
+.toggle-btn { position: relative; }
+.toggle-btn:hover { border-color: var(--primary); }
+.toggle-btn.active { border-color: var(--safe); box-shadow: inset 0 0 0 1px var(--safe); }
+.toggle-btn.active::after { content: '开'; color: var(--safe); font-weight: 700; }
+
+.legend { list-style: none; padding: 0; margin: 0; font-size: 12.5px; color: var(--muted); }
+.legend li { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+.dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; border: 1px solid rgba(255,255,255,0.2); }
+.dot.ice { background: var(--ice); }
+.dot.thunder { background: var(--thunder); }
+.dot.true { background: var(--true); }
+.dot.false { background: var(--false); }
+.dot.safe { background: var(--safe); }
+
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+  .panel { order: 2; }
+}

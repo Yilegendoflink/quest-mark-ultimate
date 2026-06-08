@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>绝妖星乱舞 · 真假魔法范围模拟器</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <h1>绝妖星乱舞 · 真假魔法模拟器</h1>
+      <p class="sub">判断冰(扇形)与雷(斜45°条带)在真/假预兆叠加下的安全区并点击</p>
+    </header>
+
+    <div class="layout">
+      <section class="stage-wrap">
+        <div class="countdown"><div id="countdown-fill" class="countdown-fill"></div></div>
+        <canvas id="stage" width="720" height="720" aria-label="场地"></canvas>
+        <p id="status" class="status">点击「开始」或场地出题</p>
+        <div class="controls">
+          <button id="btn-start" class="btn primary">开始</button>
+          <button id="btn-restart" class="btn">重置分数</button>
+        </div>
+        <div class="hud" id="hud">
+          <span>得分 <b id="score">0</b></span>
+          <span>最佳 <b id="best">0</b></span>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <h2>难度（解题时间）</h2>
+        <div class="seg" id="time-seg">
+          <button class="seg-btn" data-time="10">休闲<small>10s</small></button>
+          <button class="seg-btn" data-time="5">普通<small>5s</small></button>
+          <button class="seg-btn" data-time="3">零式<small>3s</small></button>
+          <button class="seg-btn" data-time="extreme">绝境<small>5s起·递减</small></button>
+        </div>
+
+        <h2>显示</h2>
+        <div class="toggles">
+          <button class="toggle-btn" id="set-learn">学习模式<small>显示真/假标签</small></button>
+          <button class="toggle-btn" id="set-grid">辅助分隔线<small>象限 / 条带</small></button>
+        </div>
+
+        <h3>图例</h3>
+        <ul class="legend">
+          <li><span class="dot ice"></span> 冰预兆（扇形/象限，脚底蓝环）</li>
+          <li><span class="dot thunder"></span> 雷预兆（斜45°条带，头顶紫环）</li>
+          <li><span class="dot true"></span> 白球＝真：预兆区危险</li>
+          <li><span class="dot false"></span> 红球带?＝假：预兆区安全（反转）</li>
+          <li><span class="dot safe"></span> 结算时绿色＝真实安全区</li>
+        </ul>
+      </aside>
+    </div>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
