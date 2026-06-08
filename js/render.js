@@ -12,7 +12,8 @@ const COLORS = {
   arena: '#161a2e',
   arenaEdge: '#3a4170',
   grid: 'rgba(255,255,255,0.08)',
-  tele: 'rgba(150,60,210,0.34)', // 预兆填充：半透明紫（冰雷同色）
+  teleIce: 'rgba(150,60,210,0.6)',     // 冰预兆填充：紫 60%
+  teleThunder: 'rgba(150,60,210,0.8)', // 雷预兆填充：紫 80%
   teleGold: '#ffcf45',           // 描边金
   teleRed: '#ff3030',            // 描边红
   danger: 'rgba(230,60,60,0.32)',    // 真实危险（结算）
@@ -129,10 +130,10 @@ function traceBand(ctx, arena, slant, idx) {
 }
 
 /** 半透明紫填充 + 金/红交替虚线描边（沿轮廓流动）。 */
-function fillStrokeTelegraph(ctx, traceFn, time) {
+function fillStrokeTelegraph(ctx, traceFn, time, fillColor) {
   ctx.beginPath();
   traceFn(ctx);
-  ctx.fillStyle = COLORS.tele;
+  ctx.fillStyle = fillColor;
   ctx.fill();
 
   const dash = 16;
@@ -155,11 +156,11 @@ function fillStrokeTelegraph(ctx, traceFn, time) {
 }
 
 function drawIceTelegraph(ctx, arena, iceSet, time) {
-  for (const q of iceSet) fillStrokeTelegraph(ctx, (c) => traceQuadrant(c, arena, q), time);
+  for (const q of iceSet) fillStrokeTelegraph(ctx, (c) => traceQuadrant(c, arena, q), time, COLORS.teleIce);
 }
 
 function drawThunderTelegraph(ctx, arena, slant, thunderSet, time) {
-  for (const b of thunderSet) fillStrokeTelegraph(ctx, (c) => traceBand(c, arena, slant, b), time);
+  for (const b of thunderSet) fillStrokeTelegraph(ctx, (c) => traceBand(c, arena, slant, b), time, COLORS.teleThunder);
 }
 
 const BOSS_H = 0.56; // BOSS 高度占 R 的比例（放大一圈）
