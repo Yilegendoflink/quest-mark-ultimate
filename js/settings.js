@@ -2,9 +2,9 @@
 const KEY = 'jyxlw-settings-v1';
 
 const DEFAULTS = {
+  lang: 'zh',       // 界面语言 zh | ja | en
   resolveTime: 5,   // 解题秒数
   learnMode: false, // 学习模式：直接显示真/假标签
-  showGrid: true,   // 辅助线
   bestStreak: 0,
 };
 

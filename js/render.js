@@ -11,7 +11,6 @@ const COLORS = {
   bg: '#0d1020',
   arena: '#161a2e',
   arenaEdge: '#3a4170',
-  grid: 'rgba(255,255,255,0.08)',
   teleIce: 'rgba(150,60,210,0.6)',     // 冰预兆填充：紫 60%
   teleThunder: 'rgba(150,60,210,0.8)', // 雷预兆填充：紫 80%
   teleGold: '#ffcf45',           // 描边金
@@ -34,7 +33,7 @@ function clipArena(ctx, arena, fn) {
   ctx.restore();
 }
 
-function drawArena(ctx, arena, showGrid, slant, arenaImg) {
+function drawArena(ctx, arena, arenaImg) {
   clipArena(ctx, arena, () => {
     if (arenaImg && arenaImg.width) {
       // 贴图覆盖圆的外接正方形（门神.png 已是居中圆形平台）
@@ -46,44 +45,11 @@ function drawArena(ctx, arena, showGrid, slant, arenaImg) {
     }
   });
 
-  if (showGrid) {
-    clipArena(ctx, arena, () => {
-      ctx.strokeStyle = COLORS.grid;
-      ctx.lineWidth = 1;
-      // 象限十字
-      ctx.beginPath();
-      ctx.moveTo(arena.cx - arena.R, arena.cy);
-      ctx.lineTo(arena.cx + arena.R, arena.cy);
-      ctx.moveTo(arena.cx, arena.cy - arena.R);
-      ctx.lineTo(arena.cx, arena.cy + arena.R);
-      ctx.stroke();
-      // 当前 slant 的条带分隔线
-      drawBandLines(ctx, arena, slant);
-    });
-  }
-
   ctx.strokeStyle = COLORS.arenaEdge;
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.arc(arena.cx, arena.cy, arena.R, 0, Math.PI * 2);
   ctx.stroke();
-}
-
-function drawBandLines(ctx, arena, slant) {
-  const { nx, ny } = normalFor(slant);
-  const theta = Math.atan2(ny, nx);
-  ctx.save();
-  ctx.translate(arena.cx, arena.cy);
-  ctx.rotate(theta); // 旋转后新 x 轴对齐法向，p 即新 x 坐标
-  ctx.strokeStyle = COLORS.grid;
-  ctx.beginPath();
-  for (let i = 1; i < 4; i++) {
-    const p = -arena.R + i * (arena.R / 2);
-    ctx.moveTo(p, -arena.R);
-    ctx.lineTo(p, arena.R);
-  }
-  ctx.stroke();
-  ctx.restore();
 }
 
 // 象限扇形（与圆相交后是 90° 扇形）的角度范围。
@@ -231,7 +197,7 @@ function drawRing(ctx, center, ringColor, isTrue, angle) {
   }
 }
 
-function drawRings(ctx, arena, round, angle, learn) {
+function drawRings(ctx, arena, round, angle, learn, labels) {
   const halfH = (arena.R * BOSS_H) / 2;
   // 环与头/脚重叠：落在精灵上下端内侧
   const head = { x: arena.cx, y: arena.cy - halfH * 0.62 }; // 头顶=雷(紫)
@@ -239,14 +205,14 @@ function drawRings(ctx, arena, round, angle, learn) {
   drawRing(ctx, head, COLORS.thunderRing, round.thunderTrue, angle);
   drawRing(ctx, foot, COLORS.iceRing, round.iceTrue, -angle);
 
-  if (learn) {
+  if (learn && labels) {
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = COLORS.thunderRing;
-    ctx.fillText(round.thunderTrue ? '雷·真' : '雷·假', head.x, head.y - 40);
+    ctx.fillText(round.thunderTrue ? labels.thunderT : labels.thunderF, head.x, head.y - 40);
     ctx.fillStyle = COLORS.iceRing;
-    ctx.fillText(round.iceTrue ? '冰·真' : '冰·假', foot.x, foot.y + 40);
+    ctx.fillText(round.iceTrue ? labels.iceT : labels.iceF, foot.x, foot.y + 40);
   }
 }
 
@@ -281,7 +247,7 @@ function drawClickMarker(ctx, click, correct) {
 
 /**
  * 主绘制入口。
- * @param scene { state, round, angle, click, correct, bossImg, showGrid, learn }
+ * @param scene { state, round, angle, time, click, correct, bossImg, arenaImg, learn, learnLabels }
  */
 export function renderScene(ctx, arena, scene) {
   const { round } = scene;
@@ -289,7 +255,7 @@ export function renderScene(ctx, arena, scene) {
   ctx.fillStyle = COLORS.bg;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-  drawArena(ctx, arena, scene.showGrid, round ? round.slant : 1, scene.arenaImg);
+  drawArena(ctx, arena, scene.arenaImg);
 
   if (!round) {
     drawBoss(ctx, arena, scene.bossImg);
@@ -305,7 +271,7 @@ export function renderScene(ctx, arena, scene) {
   }
 
   drawBoss(ctx, arena, scene.bossImg);
-  drawRings(ctx, arena, round, scene.angle, scene.learn);
+  drawRings(ctx, arena, round, scene.angle, scene.learn, scene.learnLabels);
 
   if (scene.state === 'resolved' && scene.click) {
     drawClickMarker(ctx, scene.click, scene.correct);

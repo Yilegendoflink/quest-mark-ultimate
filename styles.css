@@ -132,14 +132,30 @@ body {
   font-size: 15px; font-weight: 600; cursor: pointer;
 }
 .toggle-btn small { font-size: 12px; font-weight: 400; color: var(--muted); }
-.toggle-btn::after {
-  content: '关'; position: absolute; right: 14px;
-  align-self: center; font-size: 12px; color: var(--muted);
-}
 .toggle-btn { position: relative; }
+.toggle-state {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 12px; color: var(--muted);
+}
 .toggle-btn:hover { border-color: var(--primary); }
 .toggle-btn.active { border-color: var(--safe); box-shadow: inset 0 0 0 1px var(--safe); }
-.toggle-btn.active::after { content: '开'; color: var(--safe); font-weight: 700; }
+.toggle-btn.active .toggle-state { color: var(--safe); font-weight: 700; }
+
+/* 语言切换（右上角） */
+.lang-switch {
+  position: fixed; top: 12px; right: 14px; z-index: 110;
+  display: flex; gap: 4px;
+  background: var(--panel); border: 1px solid var(--panel-edge);
+  border-radius: 9px; padding: 3px;
+}
+.lang-switch button {
+  min-width: 34px; height: 30px; padding: 0 8px;
+  background: transparent; color: var(--muted);
+  border: none; border-radius: 6px; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+}
+.lang-switch button:hover { color: var(--text); }
+.lang-switch button.active { background: var(--primary); color: #fff; }
 
 .legend { list-style: none; padding: 0; margin: 0; font-size: 12.5px; color: var(--muted); }
 .legend li { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }

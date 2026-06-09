@@ -3,6 +3,7 @@ import { generateRound } from './mechanic.js';
 import { isSafe } from './geometry.js';
 import { renderScene } from './render.js';
 import { loadSettings, saveSettings } from './settings.js';
+import { I18N, LANGS } from './i18n.js';
 
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
@@ -24,11 +25,11 @@ const el = {
   btnRestart: document.getElementById('btn-restart'),
   timeSeg: document.getElementById('time-seg'),
   setLearn: document.getElementById('set-learn'),
-  setGrid: document.getElementById('set-grid'),
   modal: document.getElementById('result-modal'),
   resultScore: document.getElementById('result-score'),
   resultComment: document.getElementById('result-comment'),
   resultClose: document.getElementById('result-close'),
+  langSwitch: document.getElementById('lang-switch'),
 };
 
 const TIME_OPTIONS = [10, 5, 3, 'extreme']; // 绝境=随次递减
@@ -39,6 +40,9 @@ const AUTO_NEXT_MS = 800;   // 绝境成功后自动下一题延时
 
 let settings = loadSettings();
 if (!TIME_OPTIONS.includes(settings.resolveTime)) settings.resolveTime = 5;
+if (!LANGS.includes(settings.lang)) settings.lang = 'zh';
+
+const t = (key) => I18N[settings.lang][key]; // 取当前语言文案
 let bossImg = null; // 处理后的 BOSS 精灵（已抠掉黑底的离屏 canvas）
 let arenaImg = null; // 场地背景贴图
 
@@ -55,6 +59,11 @@ const game = {
   correct: false,
   score: 0,
   autoTimer: null,
+  statusKey: 'statusIdle', // 当前状态文案 key
+  statusCls: '',
+  statusArgs: [],
+  btnKey: 'start',         // 主按钮文案 key
+  lastTierKey: null,       // 弹窗当前档位（用于切换语言时刷新评语）
 };
 
 const isExtreme = () => settings.resolveTime === 'extreme';
@@ -73,29 +82,46 @@ function updateHud() {
   el.hud.style.display = isExtreme() ? 'flex' : 'none'; // 得分/最佳仅绝境显示
 }
 
-function setStatus(text, cls) {
-  el.status.textContent = text;
-  el.status.className = 'status' + (cls ? ' ' + cls : '');
+// 记录状态 key+参数后套用当前语言。
+function setStatus(key, cls, ...args) {
+  game.statusKey = key;
+  game.statusCls = cls;
+  game.statusArgs = args;
+  applyStatus();
+}
+function applyStatus() {
+  const v = I18N[settings.lang][game.statusKey];
+  el.status.textContent = typeof v === 'function' ? v(...game.statusArgs) : v;
+  el.status.className = 'status' + (game.statusCls ? ' ' + game.statusCls : '');
+}
+function setBtn(key) {
+  game.btnKey = key;
+  el.btnStart.textContent = t(key);
 }
 
 // ---------- 绝境结束弹窗 ----------
+const TIERS = [
+  { max: 5, cls: 'tier-green', key: 'green' },
+  { max: 10, cls: 'tier-blue', key: 'blue' },
+  { max: 30, cls: 'tier-purple', key: 'purple' },
+  { max: Infinity, cls: 'tier-orange', key: 'orange' },
+];
 function tierFor(score) {
-  if (score <= 5) return { cls: 'tier-green', text: '真棒！恭喜你——错得漂亮！' };
-  if (score <= 10) return { cls: 'tier-blue', text: '居然还活着，真是不可置信' };
-  if (score <= 30) return { cls: 'tier-purple', text: '真的假的？！你是不是有点不对劲……？' };
-  return { cls: 'tier-orange', text: '真是没了个劲——你这也太从容了' };
+  return TIERS.find((x) => score <= x.max);
 }
 
 function showResult(score) {
-  const t = tierFor(score);
+  const tier = tierFor(score);
+  game.lastTierKey = tier.key;
   el.resultScore.textContent = score;
-  el.resultScore.className = 'modal-score ' + t.cls;
-  el.resultComment.textContent = t.text;
+  el.resultScore.className = 'modal-score ' + tier.cls;
+  el.resultComment.textContent = I18N[settings.lang].comments[tier.key];
   el.modal.classList.remove('hidden');
 }
 
 function hideResult() {
   el.modal.classList.add('hidden');
+  game.lastTierKey = null;
 }
 
 // ---------- 回合流程 ----------
@@ -115,8 +141,8 @@ function startRound(continueRun = false) {
   game.state = 'showing';
   game.showStart = performance.now();
   game.click = null;
-  setStatus('判断真实安全区并点击！', 'go');
-  el.btnStart.textContent = '下一题';
+  setStatus('statusJudge', 'go');
+  setBtn('next');
   updateHud();
 }
 
@@ -136,20 +162,20 @@ function resolve(pt) {
         saveSettings(settings);
       }
       game.curTime = Math.max(game.curTime * EXTREME_DECAY, EXTREME_FLOOR);
-      setStatus(`✓ 连胜 ${game.score} · 下一题 ${game.curTime.toFixed(1)}s`, 'ok');
+      setStatus('statusWin', 'ok', game.score, game.curTime.toFixed(1));
       game.autoTimer = setTimeout(() => startRound(true), AUTO_NEXT_MS);
     } else {
-      setStatus(`✗ 失败！绝境结束 · 最佳 ${settings.bestStreak}`, 'bad');
+      setStatus('statusFail', 'bad', settings.bestStreak);
       showResult(game.score); // 弹窗展示最终连击（重置前）
       game.score = 0;
-      el.btnStart.textContent = '重新挑战';
+      setBtn('retry');
     }
   } else if (ok) {
-    setStatus('✓ 正确！点击场地继续', 'ok');
-    el.btnStart.textContent = '下一题';
+    setStatus('statusCorrect', 'ok');
+    setBtn('next');
   } else {
-    setStatus(pt ? '✗ 站错了！绿色为安全区' : '⏱ 超时！绿色为安全区', 'bad');
-    el.btnStart.textContent = '下一题';
+    setStatus(pt ? 'statusWrong' : 'statusTimeout', 'bad');
+    setBtn('next');
   }
   updateHud();
 }
@@ -162,8 +188,8 @@ function restart() {
   game.state = 'idle';
   game.round = null;
   game.click = null;
-  setStatus('点击「开始」或场地出题', '');
-  el.btnStart.textContent = '开始';
+  setStatus('statusIdle', '');
+  setBtn('start');
   el.countdownFill.style.width = '0%';
   updateHud();
 }
@@ -235,14 +261,41 @@ function loadArena() {
   img.src = encodeURI(ARENA_SRC);
 }
 
-// ---------- 设置 ----------
+// ---------- 设置 / 本地化 ----------
 function syncSettingsUi() {
   for (const btn of el.timeSeg.querySelectorAll('.seg-btn')) {
     btn.classList.toggle('active', btn.dataset.time === String(settings.resolveTime));
   }
   el.setLearn.classList.toggle('active', settings.learnMode);
-  el.setGrid.classList.toggle('active', settings.showGrid);
+  el.setLearn.querySelector('.toggle-state').textContent = settings.learnMode ? t('on') : t('off');
 }
+
+// 套用当前语言：静态文案 + 动态文案 + 弹窗 + 切换按钮高亮。
+function applyLang() {
+  const d = I18N[settings.lang];
+  document.querySelectorAll('[data-i18n]').forEach((node) => {
+    const v = d[node.dataset.i18n];
+    if (typeof v === 'string') node.textContent = v;
+  });
+  document.documentElement.lang = settings.lang === 'zh' ? 'zh-CN' : settings.lang;
+  applyStatus();
+  setBtn(game.btnKey);
+  syncSettingsUi();
+  if (!el.modal.classList.contains('hidden') && game.lastTierKey) {
+    el.resultComment.textContent = d.comments[game.lastTierKey];
+  }
+  for (const b of el.langSwitch.querySelectorAll('button')) {
+    b.classList.toggle('active', b.dataset.lang === settings.lang);
+  }
+}
+
+el.langSwitch.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  settings.lang = btn.dataset.lang;
+  saveSettings(settings);
+  applyLang();
+});
 
 el.timeSeg.addEventListener('click', (e) => {
   const btn = e.target.closest('.seg-btn');
@@ -255,11 +308,6 @@ el.timeSeg.addEventListener('click', (e) => {
 });
 el.setLearn.addEventListener('click', () => {
   settings.learnMode = !settings.learnMode;
-  saveSettings(settings);
-  syncSettingsUi();
-});
-el.setGrid.addEventListener('click', () => {
-  settings.showGrid = !settings.showGrid;
   saveSettings(settings);
   syncSettingsUi();
 });
@@ -283,16 +331,16 @@ function loop(now) {
     correct: game.correct,
     bossImg,
     arenaImg,
-    showGrid: settings.showGrid,
     learn: settings.learnMode,
+    learnLabels: I18N[settings.lang].learn,
   });
 
   requestAnimationFrame(loop);
 }
 
 // ---------- 启动 ----------
-syncSettingsUi();
 loadBoss();
 loadArena();
 restart();
+applyLang(); // 套用语言（含 syncSettingsUi）
 requestAnimationFrame(loop);
