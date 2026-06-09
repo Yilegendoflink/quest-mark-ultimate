@@ -39,6 +39,9 @@ export const I18N = {
     backLink: '← 返回',
     p4Wave1: '魔法储存',
     p4Wave2: '魔法放出',
+    memName: '记忆小游戏', memSub: '增加信息记忆压力',
+    memQuestion: '房间里现在有几个人？',
+    memFail: '✗ 数错了！',
     comments: {
       green: '真棒！恭喜你——错得漂亮！',
       blue: '居然还活着，真是不可置信！',
@@ -83,6 +86,9 @@ export const I18N = {
     backLink: '← 戻る',
     p4Wave1: 'マジックチャージ',
     p4Wave2: 'マジックアウト',
+    memName: '記憶ミニゲーム', memSub: '情報記憶の負荷を増加させる',
+    memQuestion: '今、部屋には何人いる？',
+    memFail: '✗ 数え間違い！',
     comments: {
       green: 'おめでとうゴザイマセンデシタ！',
       blue: 'まだ生きてるなんて、シンジラレナーイ！',
@@ -127,6 +133,9 @@ export const I18N = {
     backLink: '← Back',
     p4Wave1: 'Mana Charge',
     p4Wave2: 'Mana Release',
+    memName: 'Memory Game', memSub: 'Increase information memory load',
+    memQuestion: 'How many people are in the room now?',
+    memFail: '✗ Miscounted!',
     comments: {
       green: 'Congratulations... you lose!',
       blue: 'Still alive? Unbelieeevable!',

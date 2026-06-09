@@ -206,3 +206,43 @@ body {
 .tier-blue   { color: #5aa9ff; }
 .tier-purple { color: #b07bff; }
 .tier-orange { color: #ff9d3c; }
+
+/* 记忆小游戏 */
+.mem-card { max-width: 540px; width: 100%; }
+.mem-stage {
+  position: relative;
+  height: 200px;
+  background: #f4f1e8;
+  border: 1px solid var(--panel-edge);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.mem-house {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;                        /* 房子在小人之上，正确遮挡进/出 */
+  background: #f4f1e8;               /* 不透明底，挡住身后小人 */
+}
+.mem-person {
+  position: absolute;
+  top: 50%;
+  width: 42px; height: 63px;
+  margin-top: -31px;                 /* 垂直居中（不占用 transform，避免与定位冲突） */
+  z-index: 1;
+  image-rendering: pixelated;       /* 像素 gif 放大保持锐利 */
+  mix-blend-mode: multiply;          /* 在白底上抠掉 gif 白色背景 */
+  pointer-events: none;
+  will-change: left;
+}
+.mem-question {
+  text-align: center;
+  font-size: 22px; font-weight: 700;
+  margin: 18px 0 14px;
+  min-height: 28px;
+}
+.mem-options { display: flex; gap: 12px; justify-content: center; }
+.mem-options .btn {
+  min-width: 76px; min-height: 56px;
+  font-size: 24px; font-weight: 800;
+}

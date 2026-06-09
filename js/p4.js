@@ -23,6 +23,11 @@ const el = {
   btnRestart: document.getElementById('btn-restart'),
   timeSeg: document.getElementById('time-seg'),
   setLearn: document.getElementById('set-learn'),
+  setMemory: document.getElementById('set-memory'),
+  memModal: document.getElementById('memory-modal'),
+  memStage: document.getElementById('mem-stage'),
+  memQuestion: document.getElementById('mem-question'),
+  memOptions: document.getElementById('mem-options'),
   modal: document.getElementById('result-modal'),
   resultScore: document.getElementById('result-score'),
   resultComment: document.getElementById('result-comment'),
@@ -36,6 +41,13 @@ const EXTREME_DECAY = 0.9;
 const EXTREME_FLOOR = 0.5;
 const AUTO_NEXT_MS = 800;  // 整回合成功后自动下一回合
 const WAVE_GAP_MS = 700;   // 第一段过关后进入第二段的间隔
+
+// 记忆小游戏
+const PEOPLE_SRC = 'assets/gif/laughingKefka.gif';
+const MEM_PERSON_W = 42;    // 小人宽(px)
+const MEM_SPEED = 150;      // 匀速移动速度(px/s)
+const MEM_SPACING = 50;     // 队列间距(px)
+const MEM_PAUSE = 500;      // 进/出之间停顿(ms)
 
 let settings = loadSettings();
 if (!TIME_OPTIONS.includes(settings.resolveTime)) settings.resolveTime = 5;
@@ -65,6 +77,9 @@ const game = {
   statusArgs: [],
   btnKey: 'start',
   lastTierKey: null,
+  memToken: 0,        // 记忆小游戏中止令牌
+  memAnswer: null,    // 当前正确人数
+  memAsking: false,   // 是否已进入提问阶段（切语言时刷新提问）
 };
 
 const isExtreme = () => settings.resolveTime === 'extreme';
@@ -154,11 +169,124 @@ function resolveWave1(pt) {
   game.correct = ok;
   el.countdownFill.style.width = '0%';
   if (ok) {
-    game.state = 'wave1done';            // 短暂高亮第一段结果，再进第二段
-    game.gapTimer = setTimeout(enterWave2, WAVE_GAP_MS);
+    game.state = 'wave1done';            // 短暂高亮第一段结果
+    game.gapTimer = setTimeout(() => {
+      game.gapTimer = null;
+      if (settings.memoryGame) startMemoryGame(); // 开启则插入记忆小游戏
+      else enterWave2();
+    }, WAVE_GAP_MS);
   } else {
     finishRound(false, !!pt);            // 第一段错 → 整回合失败
   }
+}
+
+// ---------- 记忆小游戏（两轮之间） ----------
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+
+function spawnPerson(x) {
+  const img = document.createElement('img');
+  img.className = 'mem-person';
+  img.src = encodeURI(PEOPLE_SRC);
+  img.style.left = x + 'px';
+  el.memStage.appendChild(img);
+  return img;
+}
+
+// 匀速直线平移（CSS linear transition；duration = 距离/速度 → 各人同速）。
+function moveLinear(img, x, durMs) {
+  img.style.transition = `left ${durMs}ms linear`;
+  img.style.left = x + 'px';
+}
+
+async function startMemoryGame() {
+  const x = randInt(4, 9);   // 4..9
+  const y = randInt(1, x);   // 1..x
+  game.memAnswer = x - y;
+  game.state = 'memory';
+  game.memAsking = false;
+  const token = ++game.memToken;
+  const aborted = () => token !== game.memToken;
+
+  el.memQuestion.textContent = '';
+  el.memOptions.innerHTML = '';
+  el.memStage.querySelectorAll('.mem-person').forEach((n) => n.remove());
+  el.memModal.classList.remove('hidden');
+
+  const W = el.memStage.clientWidth || 500;
+  const houseX = W / 2;
+  const pw = MEM_PERSON_W;
+  const doorLeft = houseX - pw / 2;   // 小人正对门口时的 left
+  const offLeft = -pw - 10;           // 走出左侧
+  const v = MEM_SPEED;
+
+  // Phase A：x 人从窗体右边缘陆续进入，整队同速向左进入房子（到门口被房子遮挡并移除）
+  const enterFront = W;               // 队首起点＝右边缘（从边缘出现，而非中间凭空出现）
+  const enterImgs = [];
+  for (let i = 0; i < x; i++) enterImgs.push(spawnPerson(enterFront + i * MEM_SPACING));
+  void el.memStage.offsetWidth;       // 强制回流，确保从初始位置开始过渡
+  let enterDur = 0;
+  enterImgs.forEach((img, i) => {
+    const dist = enterFront + i * MEM_SPACING - doorLeft;
+    const dur = (dist / v) * 1000;     // 同速 → 保持间距，依次到达
+    enterDur = Math.max(enterDur, dur);
+    moveLinear(img, doorLeft, dur);
+    setTimeout(() => img.remove(), dur);
+  });
+  await sleep(enterDur + 80);
+  if (aborted()) return;
+  await sleep(MEM_PAUSE);
+  if (aborted()) return;
+
+  // Phase B：y 人从房子门口（初始被遮挡）错峰、同速向左走出
+  const exitDur = ((doorLeft - offLeft) / v) * 1000;
+  const exitImgs = [];
+  for (let i = 0; i < y; i++) exitImgs.push(spawnPerson(doorLeft));
+  void el.memStage.offsetWidth;
+  let lastEnd = 0;
+  exitImgs.forEach((img, i) => {
+    const startT = i * (MEM_SPACING / v) * 1000;
+    lastEnd = Math.max(lastEnd, startT + exitDur);
+    setTimeout(() => { if (!aborted()) moveLinear(img, offLeft, exitDur); }, startT);
+    setTimeout(() => img.remove(), startT + exitDur);
+  });
+  await sleep(lastEnd + 80);
+  if (aborted()) return;
+
+  // Phase C：提问 + 三个相邻数字按钮
+  game.memAsking = true;
+  el.memQuestion.textContent = t('memQuestion');
+  buildMemOptions(game.memAnswer);
+}
+
+function buildMemOptions(answer) {
+  let lo = answer - randInt(0, 2);
+  if (lo < 0) lo = 0;
+  if (lo > answer) lo = answer; // 保证含正确答案
+  const opts = [lo, lo + 1, lo + 2];
+  el.memOptions.innerHTML = '';
+  for (const v of opts) {
+    const b = document.createElement('button');
+    b.className = 'btn';
+    b.textContent = v;
+    b.addEventListener('click', () => onMemAnswer(v));
+    el.memOptions.appendChild(b);
+  }
+}
+
+function onMemAnswer(val) {
+  const correct = val === game.memAnswer;
+  closeMemory();
+  if (correct) enterWave2();
+  else finishRound(false, false, 'memFail');
+}
+
+function closeMemory() {
+  game.memToken++;             // 中止任何进行中的动画
+  game.memAsking = false;
+  el.memModal.classList.add('hidden');
+  el.memStage.querySelectorAll('.mem-person').forEach((n) => n.remove());
+  el.memOptions.innerHTML = '';
 }
 
 // 第二段判定：冰雷叠加（有效真假）。
@@ -170,8 +298,8 @@ function resolveWave2(pt) {
   finishRound(ok, !!pt);
 }
 
-// 整回合结算。
-function finishRound(ok, byClick) {
+// 整回合结算。failKey：非绝境失败时替代默认的 statusWrong/timeout（如记忆小游戏答错）。
+function finishRound(ok, byClick, failKey) {
   cancelTimers();
   game.state = 'resolved';
   if (isExtreme()) {
@@ -194,7 +322,7 @@ function finishRound(ok, byClick) {
     setStatus('statusCorrect', 'ok');
     setBtn('next');
   } else {
-    setStatus(byClick ? 'statusWrong' : 'statusTimeout', 'bad');
+    setStatus(failKey || (byClick ? 'statusWrong' : 'statusTimeout'), 'bad');
     setBtn('next');
   }
   updateHud();
@@ -203,6 +331,7 @@ function finishRound(ok, byClick) {
 function restart() {
   cancelTimers();
   hideResult();
+  closeMemory();
   game.score = 0;
   game.curTime = EXTREME_START;
   game.state = 'idle';
@@ -230,6 +359,7 @@ canvas.addEventListener('pointerdown', (e) => {
     case 'wave1': resolveWave1(canvasPoint(e)); break;
     case 'wave2': resolveWave2(canvasPoint(e)); break;
     case 'wave1done': break; // 过渡中，忽略
+    case 'memory': break;    // 记忆小游戏进行中，忽略场地点击
     case 'resolved':
       if (game.autoTimer) return;
       startRound();
@@ -238,7 +368,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 el.btnStart.addEventListener('click', () => {
-  if (game.state === 'wave1' || game.state === 'wave2' || game.state === 'wave1done' || game.autoTimer) return;
+  if (['wave1', 'wave2', 'wave1done', 'memory'].includes(game.state) || game.autoTimer) return;
   startRound();
 });
 el.btnRestart.addEventListener('click', restart);
@@ -287,6 +417,8 @@ function syncSettingsUi() {
   }
   el.setLearn.classList.toggle('active', settings.learnMode);
   el.setLearn.querySelector('.toggle-state').textContent = settings.learnMode ? t('on') : t('off');
+  el.setMemory.classList.toggle('active', settings.memoryGame);
+  el.setMemory.querySelector('.toggle-state').textContent = settings.memoryGame ? t('on') : t('off');
 }
 
 function applyLang() {
@@ -302,6 +434,7 @@ function applyLang() {
   if (!el.modal.classList.contains('hidden') && game.lastTierKey) {
     el.resultComment.textContent = d.comments[game.lastTierKey];
   }
+  if (game.memAsking) el.memQuestion.textContent = d.memQuestion; // 提问中切语言即时更新
   for (const b of el.langSwitch.querySelectorAll('button')) {
     b.classList.toggle('active', b.dataset.lang === settings.lang);
   }
@@ -326,6 +459,11 @@ el.timeSeg.addEventListener('click', (e) => {
 });
 el.setLearn.addEventListener('click', () => {
   settings.learnMode = !settings.learnMode;
+  saveSettings(settings);
+  syncSettingsUi();
+});
+el.setMemory.addEventListener('click', () => {
+  settings.memoryGame = !settings.memoryGame;
   saveSettings(settings);
   syncSettingsUi();
 });
