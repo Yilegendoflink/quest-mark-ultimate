@@ -184,13 +184,22 @@ function resolveWave1(pt) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 
+// 小人 = 容器(移动) + 后备指示物 + gif。gif 未加载/失败时显示指示物，保证可见可数。
 function spawnPerson(x) {
+  const person = document.createElement('div');
+  person.className = 'mem-person';
+  person.style.left = x + 'px';
+  const fallback = document.createElement('div');
+  fallback.className = 'mem-fallback';
   const img = document.createElement('img');
-  img.className = 'mem-person';
+  img.className = 'mem-sprite';
+  img.alt = '';
+  img.onload = () => { fallback.style.display = 'none'; }; // 成功加载后隐藏指示物
+  img.onerror = () => { img.style.display = 'none'; };     // 加载失败则仅留指示物
   img.src = encodeURI(PEOPLE_SRC);
-  img.style.left = x + 'px';
-  el.memStage.appendChild(img);
-  return img;
+  person.append(fallback, img);
+  el.memStage.appendChild(person);
+  return person;
 }
 
 // 匀速直线平移（CSS linear transition；duration = 距离/速度 → 各人同速）。

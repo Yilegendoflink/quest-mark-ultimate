@@ -230,10 +230,32 @@ body {
   width: 42px; height: 63px;
   margin-top: -31px;                 /* 垂直居中（不占用 transform，避免与定位冲突） */
   z-index: 1;
-  image-rendering: pixelated;       /* 像素 gif 放大保持锐利 */
-  mix-blend-mode: multiply;          /* 在白底上抠掉 gif 白色背景 */
   pointer-events: none;
   will-change: left;
+}
+.mem-sprite {
+  display: block;
+  width: 100%; height: 100%;
+  image-rendering: pixelated;        /* 像素 gif 放大保持锐利 */
+  mix-blend-mode: multiply;          /* 在白底上抠掉 gif 白色背景 */
+}
+/* 后备指示物：gif 未加载/失败时显示的小人剪影 */
+.mem-fallback {
+  position: absolute;
+  left: 50%; bottom: 2px;
+  transform: translateX(-50%);
+  width: 28px; height: 40px;
+  background: #7a4fd6;
+  border-radius: 14px 14px 7px 7px;
+}
+.mem-fallback::before {              /* 头 */
+  content: '';
+  position: absolute;
+  top: -16px; left: 50%;
+  transform: translateX(-50%);
+  width: 21px; height: 21px;
+  border-radius: 50%;
+  background: #7a4fd6;
 }
 .mem-question {
   text-align: center;
