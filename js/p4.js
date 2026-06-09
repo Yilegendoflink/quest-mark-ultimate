@@ -200,7 +200,7 @@ function moveLinear(img, x, durMs) {
 }
 
 async function startMemoryGame() {
-  const x = randInt(4, 9);   // 4..9
+  const x = randInt(3, 7);   // 4..7
   const y = randInt(1, x);   // 1..x
   game.memAnswer = x - y;
   game.state = 'memory';
