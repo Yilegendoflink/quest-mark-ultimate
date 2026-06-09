@@ -46,7 +46,7 @@ const WAVE_GAP_MS = 700;   // 第一段过关后进入第二段的间隔
 const PEOPLE_SRC = 'assets/gif/laughingKefka.gif';
 const MEM_PERSON_W = 42;    // 小人宽(px)
 const MEM_SPEED = 150;      // 匀速移动速度(px/s)
-const MEM_SPACING = 50;     // 队列间距(px)
+const MEM_SPACING = 68;     // 队列间距(px)
 const MEM_PAUSE = 500;      // 进/出之间停顿(ms)
 
 let settings = loadSettings();
