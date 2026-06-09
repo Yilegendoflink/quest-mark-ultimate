@@ -197,33 +197,40 @@ function drawRing(ctx, center, ringColor, isTrue, angle) {
   }
 }
 
-function drawRings(ctx, arena, round, angle, learn, labels) {
+// opts: { headVisible, footVisible, headTrue, footTrue, learn, labels }
+function drawRings(ctx, arena, angle, opts) {
   const halfH = (arena.R * BOSS_H) / 2;
   // 环与头/脚重叠：落在精灵上下端内侧
   const head = { x: arena.cx, y: arena.cy - halfH * 0.62 }; // 头顶=雷(紫)
   const foot = { x: arena.cx, y: arena.cy + halfH * 0.78 }; // 脚底=冰(蓝)
-  drawRing(ctx, head, COLORS.thunderRing, round.thunderTrue, angle);
-  drawRing(ctx, foot, COLORS.iceRing, round.iceTrue, -angle);
+  if (opts.headVisible) drawRing(ctx, head, COLORS.thunderRing, opts.headTrue, angle);
+  if (opts.footVisible) drawRing(ctx, foot, COLORS.iceRing, opts.footTrue, -angle);
 
-  if (learn && labels) {
+  if (opts.learn && opts.labels) {
     ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = COLORS.thunderRing;
-    ctx.fillText(round.thunderTrue ? labels.thunderT : labels.thunderF, head.x, head.y - 40);
-    ctx.fillStyle = COLORS.iceRing;
-    ctx.fillText(round.iceTrue ? labels.iceT : labels.iceF, foot.x, foot.y + 40);
+    if (opts.headVisible) {
+      ctx.fillStyle = COLORS.thunderRing;
+      ctx.fillText(opts.headTrue ? opts.labels.thunderT : opts.labels.thunderF, head.x, head.y - 40);
+    }
+    if (opts.footVisible) {
+      ctx.fillStyle = COLORS.iceRing;
+      ctx.fillText(opts.footTrue ? opts.labels.iceT : opts.labels.iceF, foot.x, foot.y + 40);
+    }
   }
 }
 
-/** 结算：采样填充真实安全(绿)/危险(红)。 */
-function drawResolution(ctx, arena, round, step = 7) {
+/** 结算：采样填充真实安全(绿)/危险(红)。iceActive/thunderActive 控制纳入哪类危险。 */
+function drawResolution(ctx, arena, round, iceActive, thunderActive, step = 7) {
   clipArena(ctx, arena, () => {
     for (let y = arena.cy - arena.R; y <= arena.cy + arena.R; y += step) {
       for (let x = arena.cx - arena.R; x <= arena.cx + arena.R; x += step) {
         const pt = { x, y };
         if (!insideArena(pt, arena)) continue;
-        const danger = iceDanger(pt, round, arena) || thunderDanger(pt, round, arena);
+        const danger =
+          (iceActive && iceDanger(pt, round, arena)) ||
+          (thunderActive && thunderDanger(pt, round, arena));
         ctx.fillStyle = danger ? COLORS.danger : COLORS.safe;
         ctx.fillRect(x, y, step, step);
       }
@@ -247,7 +254,12 @@ function drawClickMarker(ctx, click, correct) {
 
 /**
  * 主绘制入口。
- * @param scene { state, round, angle, time, click, correct, bossImg, arenaImg, learn, learnLabels }
+ * @param scene {
+ *   state, round, angle, time, click, correct, bossImg, arenaImg, learn, learnLabels,
+ *   iceVisible?, thunderVisible?,            // 预兆/结算是否纳入该属性（默认 true）
+ *   ringIceVisible?, ringThunderVisible?,    // 是否绘制脚底/头顶环（默认 true）
+ *   ringIceTrue?, ringThunderTrue?,          // 环显示真假（默认取 round.iceTrue/thunderTrue）
+ * }
  */
 export function renderScene(ctx, arena, scene) {
   const { round } = scene;
@@ -262,16 +274,26 @@ export function renderScene(ctx, arena, scene) {
     return;
   }
 
+  const iceVisible = scene.iceVisible !== false;
+  const thunderVisible = scene.thunderVisible !== false;
+
   // 预兆填充（showing 与 resolved 都显示）
-  drawIceTelegraph(ctx, arena, round.iceSet, scene.time);
-  drawThunderTelegraph(ctx, arena, round.slant, round.thunderSet, scene.time);
+  if (iceVisible) drawIceTelegraph(ctx, arena, round.iceSet, scene.time);
+  if (thunderVisible) drawThunderTelegraph(ctx, arena, round.slant, round.thunderSet, scene.time);
 
   if (scene.state === 'resolved') {
-    drawResolution(ctx, arena, round);
+    drawResolution(ctx, arena, round, iceVisible, thunderVisible);
   }
 
   drawBoss(ctx, arena, scene.bossImg);
-  drawRings(ctx, arena, round, scene.angle, scene.learn, scene.learnLabels);
+  drawRings(ctx, arena, scene.angle, {
+    headVisible: scene.ringThunderVisible !== false,
+    footVisible: scene.ringIceVisible !== false,
+    headTrue: scene.ringThunderTrue ?? round.thunderTrue,
+    footTrue: scene.ringIceTrue ?? round.iceTrue,
+    learn: scene.learn,
+    labels: scene.learnLabels,
+  });
 
   if (scene.state === 'resolved' && scene.click) {
     drawClickMarker(ctx, scene.click, scene.correct);

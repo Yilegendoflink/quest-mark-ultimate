@@ -39,3 +39,53 @@ export function generateRound(arena, minSafeRatio = 0.05) {
   // 极少数情况下兜底返回最后一次（理论上不会到这里）。
   return round;
 }
+
+// 单属性 round：把另一属性中性化（空集 + true）使其危险恒为 false，
+// 从而 isSafe/safeAreaRatio 退化为只看该属性。
+function makeIceRound(displayTrue) {
+  return { iceSet: pick(ICE_PAIRS).slice(), slant: 1, thunderSet: [], iceTrue: displayTrue, thunderTrue: true };
+}
+function makeThunderRound(displayTrue) {
+  return { iceSet: [], slant: coin() ? 1 : -1, thunderSet: pick(THUNDER_PAIRS).slice(), iceTrue: true, thunderTrue: displayTrue };
+}
+
+/**
+ * p4 双段机制出题。
+ * 第一轮：单一属性(冰或雷)，随机真假；第二轮：冰雷皆出，对第一轮属性套用同真规则
+ * （effective = 上轮真假 === 本轮该环显示真假），另一属性按显示值。
+ * 两轮安全区均校验非空。
+ * @returns {{
+ *   wave1:{ attr:'ice'|'thunder', round, displayTrue },
+ *   wave2:{ round, iceDisplayTrue, thunderDisplayTrue }
+ * }}
+ */
+export function generateP4Round(arena, minSafeRatio = 0.05) {
+  let last;
+  for (let i = 0; i < 80; i++) {
+    const attr = coin() ? 'ice' : 'thunder';
+    const wave1True = coin();
+    const wave1Round = attr === 'ice' ? makeIceRound(wave1True) : makeThunderRound(wave1True);
+
+    const iceSet = pick(ICE_PAIRS).slice();
+    const slant = coin() ? 1 : -1;
+    const thunderSet = pick(THUNDER_PAIRS).slice();
+    const iceDisplayTrue = coin();
+    const thunderDisplayTrue = coin();
+    // 同真规则：对第一轮属性 (上轮 === 本轮显示)，另一属性 = 显示值。
+    const iceEffTrue = attr === 'ice' ? wave1True === iceDisplayTrue : iceDisplayTrue;
+    const thunderEffTrue = attr === 'thunder' ? wave1True === thunderDisplayTrue : thunderDisplayTrue;
+    const wave2Round = { iceSet, slant, thunderSet, iceTrue: iceEffTrue, thunderTrue: thunderEffTrue };
+
+    last = {
+      wave1: { attr, round: wave1Round, displayTrue: wave1True },
+      wave2: { round: wave2Round, iceDisplayTrue, thunderDisplayTrue },
+    };
+    if (
+      safeAreaRatio(wave1Round, arena) >= minSafeRatio &&
+      safeAreaRatio(wave2Round, arena) >= minSafeRatio
+    ) {
+      return last;
+    }
+  }
+  return last;
+}

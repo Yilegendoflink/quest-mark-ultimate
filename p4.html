@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>绝妖星乱舞 · 真假魔法范围模拟器</title>
+  <title>绝妖星乱舞 · 双段真假魔法</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,7 +15,7 @@
 
   <main class="app">
     <header class="topbar">
-      <h1 data-i18n="title">绝妖星乱舞 · 玄乎乎魔法模拟器</h1>
+      <h1 data-i18n="p4Title">绝妖星乱舞 · 玄乎乎魔法模拟器</h1>
       <p class="sub" data-i18n="subtitle">判断冰(扇形)与雷(斜45°条带)在真/假预兆叠加下的安全区并点击</p>
     </header>
 
@@ -27,7 +27,7 @@
         <div class="controls">
           <button id="btn-start" class="btn primary">开始</button>
           <button id="btn-restart" class="btn" data-i18n="restart">重置分数</button>
-          <a class="btn" href="p4.html" data-i18n="p4Link">进阶：双段机制 →</a>
+          <a class="btn" href="index.html" data-i18n="backLink">← 返回单段</a>
         </div>
         <div class="hud" id="hud">
           <span><span data-i18n="score">得分</span> <b id="score">0</b></span>
@@ -74,6 +74,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/p4.js"></script>
 </body>
 </html>

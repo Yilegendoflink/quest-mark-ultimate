@@ -5,7 +5,8 @@ const DEFAULTS = {
   lang: 'zh',       // 界面语言 zh | ja | en
   resolveTime: 5,   // 解题秒数
   learnMode: false, // 学习模式：直接显示真/假标签
-  bestStreak: 0,
+  bestStreak: 0,    // 单段(主页)最佳连击
+  bestStreakP4: 0,  // 双段(p4)最佳连击
 };
 
 export function loadSettings() {
