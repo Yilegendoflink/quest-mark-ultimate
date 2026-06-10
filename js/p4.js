@@ -22,6 +22,7 @@ const el = {
   btnStart: document.getElementById('btn-start'),
   btnRestart: document.getElementById('btn-restart'),
   timeSeg: document.getElementById('time-seg'),
+  roundsSeg: document.getElementById('rounds-seg'),
   setLearn: document.getElementById('set-learn'),
   setMemory: document.getElementById('set-memory'),
   memModal: document.getElementById('memory-modal'),
@@ -52,6 +53,7 @@ const MEM_PAUSE = 500;      // 进/出之间停顿(ms)
 let settings = loadSettings();
 if (!TIME_OPTIONS.includes(settings.resolveTime)) settings.resolveTime = 5;
 if (!LANGS.includes(settings.lang)) settings.lang = 'zh';
+if (![2, 3].includes(settings.roundsP4)) settings.roundsP4 = 2;
 
 const t = (key) => I18N[settings.lang][key];
 let bossImg = null;
@@ -61,9 +63,10 @@ const BOSS_SRC = 'assets/png/凯夫卡.png';
 const ARENA_SRC = 'assets/png/门神.png';
 
 const game = {
-  state: 'idle', // idle | wave1 | wave1done | wave2 | resolved
+  state: 'idle', // idle | wave | wavedone | memory | resolved
   p4: null,      // generateP4Round 结果
-  wave: 1,       // 当前段 1|2（结算时用于决定渲染哪段）
+  waves: [],     // 本回合各段渲染描述（charges... + final）
+  waveIndex: 0,  // 当前段索引
   showStart: 0,
   roundTime: EXTREME_START,
   curTime: EXTREME_START,
@@ -134,7 +137,27 @@ function hideResult() {
   game.lastTierKey = null;
 }
 
-// ---------- 回合流程（两段） ----------
+// ---------- 回合流程（多段：充能段… + 放出段） ----------
+// 把 generateP4Round 结果展开为各段渲染描述。
+function buildWaves(p4) {
+  const waves = p4.charges.map((c) => {
+    const ice = c.attr === 'ice';
+    return {
+      kind: 'charge', round: c.round,
+      iceVisible: ice, thunderVisible: !ice,
+      ringIceVisible: ice, ringThunderVisible: !ice,
+    };
+  });
+  waves.push({
+    kind: 'final', round: p4.final.round,
+    iceVisible: true, thunderVisible: true,
+    ringIceVisible: true, ringThunderVisible: true,
+    ringIceTrue: p4.final.iceDisplayTrue,     // 环显示原始值（同真规则由玩家心算）
+    ringThunderTrue: p4.final.thunderDisplayTrue,
+  });
+  return waves;
+}
+
 function startRound(continueRun = false) {
   cancelTimers();
   if (isExtreme()) {
@@ -143,41 +166,49 @@ function startRound(continueRun = false) {
   } else {
     game.roundTime = settings.resolveTime;
   }
-  game.p4 = generateP4Round(arena);
-  game.wave = 1;
-  game.state = 'wave1';
-  game.showStart = performance.now();
-  game.click = null;
-  setStatus('p4Wave1', 'go');
+  game.p4 = generateP4Round(arena, settings.roundsP4);
+  game.waves = buildWaves(game.p4);
+  game.waveIndex = 0;
+  showWave();
   setBtn('next');
   updateHud();
 }
 
-function enterWave2() {
-  game.gapTimer = null;
-  game.wave = 2;
-  game.state = 'wave2';
+// 展示当前段。
+function showWave() {
+  const w = game.waves[game.waveIndex];
+  game.state = 'wave';
   game.showStart = performance.now();
   game.click = null;
-  setStatus('p4Wave2', 'go');
+  setStatus(w.kind === 'final' ? 'p4Wave2' : 'p4Wave1', 'go');
 }
 
-// 第一段判定：单属性安全（inactive 属性已在 round 中性化）。
-function resolveWave1(pt) {
-  const ok = pt ? isSafe(pt, game.p4.wave1.round, arena) : false;
+function advanceWave() {
+  game.gapTimer = null;
+  game.waveIndex++;
+  showWave();
+}
+
+// 当前段判定。最后一段(放出)判定整回合；其余段答对则（可选记忆小游戏后）进入下一段。
+function resolveWave(pt) {
+  const w = game.waves[game.waveIndex];
+  const ok = pt ? isSafe(pt, w.round, arena) : false;
   game.click = pt;
   game.correct = ok;
   el.countdownFill.style.width = '0%';
-  if (ok) {
-    game.state = 'wave1done';            // 短暂高亮第一段结果
-    game.gapTimer = setTimeout(() => {
-      game.gapTimer = null;
-      if (settings.memoryGame) startMemoryGame(); // 开启则插入记忆小游戏
-      else enterWave2();
-    }, WAVE_GAP_MS);
-  } else {
-    finishRound(false, !!pt);            // 第一段错 → 整回合失败
-  }
+
+  if (!ok) { finishRound(false, !!pt); return; }
+  if (game.waveIndex === game.waves.length - 1) { finishRound(true, !!pt); return; }
+
+  game.state = 'wavedone';                 // 短暂高亮本段结果
+  // 记忆小游戏只在“放出段之前”的那个间隙出现（即最后一段之前）。
+  // 2 轮：充能→记忆→放出；3 轮：充能→充能→记忆→放出（第一二段之间不出现）。
+  const nextIsFinal = game.waveIndex === game.waves.length - 2;
+  game.gapTimer = setTimeout(() => {
+    game.gapTimer = null;
+    if (settings.memoryGame && nextIsFinal) startMemoryGame();
+    else advanceWave();
+  }, WAVE_GAP_MS);
 }
 
 // ---------- 记忆小游戏（两轮之间） ----------
@@ -286,7 +317,7 @@ function buildMemOptions(answer) {
 function onMemAnswer(val) {
   const correct = val === game.memAnswer;
   closeMemory();
-  if (correct) enterWave2();
+  if (correct) advanceWave();
   else finishRound(false, false, 'memFail');
 }
 
@@ -296,15 +327,6 @@ function closeMemory() {
   el.memModal.classList.add('hidden');
   el.memStage.querySelectorAll('.mem-person').forEach((n) => n.remove());
   el.memOptions.innerHTML = '';
-}
-
-// 第二段判定：冰雷叠加（有效真假）。
-function resolveWave2(pt) {
-  const ok = pt ? isSafe(pt, game.p4.wave2.round, arena) : false;
-  game.click = pt;
-  game.correct = ok;
-  el.countdownFill.style.width = '0%';
-  finishRound(ok, !!pt);
 }
 
 // 整回合结算。failKey：非绝境失败时替代默认的 statusWrong/timeout（如记忆小游戏答错）。
@@ -345,7 +367,8 @@ function restart() {
   game.curTime = EXTREME_START;
   game.state = 'idle';
   game.p4 = null;
-  game.wave = 1;
+  game.waves = [];
+  game.waveIndex = 0;
   game.click = null;
   setStatus('statusIdle', '');
   setBtn('start');
@@ -365,10 +388,9 @@ function canvasPoint(e) {
 canvas.addEventListener('pointerdown', (e) => {
   switch (game.state) {
     case 'idle': startRound(); break;
-    case 'wave1': resolveWave1(canvasPoint(e)); break;
-    case 'wave2': resolveWave2(canvasPoint(e)); break;
-    case 'wave1done': break; // 过渡中，忽略
-    case 'memory': break;    // 记忆小游戏进行中，忽略场地点击
+    case 'wave': resolveWave(canvasPoint(e)); break;
+    case 'wavedone': break; // 过渡中，忽略
+    case 'memory': break;   // 记忆小游戏进行中，忽略场地点击
     case 'resolved':
       if (game.autoTimer) return;
       startRound();
@@ -377,7 +399,7 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 
 el.btnStart.addEventListener('click', () => {
-  if (['wave1', 'wave2', 'wave1done', 'memory'].includes(game.state) || game.autoTimer) return;
+  if (['wave', 'wavedone', 'memory'].includes(game.state) || game.autoTimer) return;
   startRound();
 });
 el.btnRestart.addEventListener('click', restart);
@@ -424,6 +446,9 @@ function syncSettingsUi() {
   for (const btn of el.timeSeg.querySelectorAll('.seg-btn')) {
     btn.classList.toggle('active', btn.dataset.time === String(settings.resolveTime));
   }
+  for (const btn of el.roundsSeg.querySelectorAll('.seg-btn')) {
+    btn.classList.toggle('active', Number(btn.dataset.rounds) === settings.roundsP4);
+  }
   el.setLearn.classList.toggle('active', settings.learnMode);
   el.setLearn.querySelector('.toggle-state').textContent = settings.learnMode ? t('on') : t('off');
   el.setMemory.classList.toggle('active', settings.memoryGame);
@@ -466,6 +491,14 @@ el.timeSeg.addEventListener('click', (e) => {
   syncSettingsUi();
   restart();
 });
+el.roundsSeg.addEventListener('click', (e) => {
+  const btn = e.target.closest('.seg-btn');
+  if (!btn) return;
+  settings.roundsP4 = Number(btn.dataset.rounds);
+  saveSettings(settings);
+  syncSettingsUi();
+  restart(); // 段数变化 → 重置当前回合
+});
 el.setLearn.addEventListener('click', () => {
   settings.learnMode = !settings.learnMode;
   saveSettings(settings);
@@ -489,44 +522,29 @@ function buildScene(now) {
     learn: settings.learnMode,
     learnLabels: I18N[settings.lang].learn,
   };
-  if (!game.p4) return { ...base, state: 'idle', round: null };
+  if (!game.p4 || !game.waves.length) return { ...base, state: 'idle', round: null };
 
-  const resolvedView = game.state === 'resolved' || game.state === 'wave1done';
-  const renderState = resolvedView ? 'resolved' : 'showing';
-
-  if (game.wave === 1) {
-    const w = game.p4.wave1;
-    const ice = w.attr === 'ice';
-    return {
-      ...base,
-      state: renderState,
-      round: w.round,
-      iceVisible: ice,
-      thunderVisible: !ice,
-      ringIceVisible: ice,
-      ringThunderVisible: !ice,
-    };
-  }
-  // 第二段：危险/预兆用有效真假 round；两环显示原始值（同真规则由玩家心算）。
-  const w = game.p4.wave2;
+  const resolvedView = game.state === 'resolved' || game.state === 'wavedone';
+  const w = game.waves[game.waveIndex];
   return {
     ...base,
-    state: renderState,
+    state: resolvedView ? 'resolved' : 'showing',
     round: w.round,
-    ringIceTrue: w.iceDisplayTrue,
-    ringThunderTrue: w.thunderDisplayTrue,
+    iceVisible: w.iceVisible,
+    thunderVisible: w.thunderVisible,
+    ringIceVisible: w.ringIceVisible,
+    ringThunderVisible: w.ringThunderVisible,
+    ringIceTrue: w.ringIceTrue,        // charge 段为 undefined → 渲染回退到 round 真假
+    ringThunderTrue: w.ringThunderTrue,
   };
 }
 
 function loop(now) {
-  if (game.state === 'wave1' || game.state === 'wave2') {
+  if (game.state === 'wave') {
     const elapsed = (now - game.showStart) / 1000;
     const remaining = Math.max(0, game.roundTime - elapsed);
     el.countdownFill.style.width = (remaining / game.roundTime) * 100 + '%';
-    if (elapsed >= game.roundTime) {
-      if (game.state === 'wave1') resolveWave1(null);
-      else resolveWave2(null);
-    }
+    if (elapsed >= game.roundTime) resolveWave(null);
   }
   renderScene(ctx, arena, buildScene(now));
   requestAnimationFrame(loop);

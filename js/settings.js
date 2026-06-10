@@ -6,6 +6,7 @@ const DEFAULTS = {
   resolveTime: 5,   // 解题秒数
   learnMode: false,  // 学习模式：直接显示真/假标签
   memoryGame: false, // p4 两轮之间插入记忆小游戏
+  roundsP4: 2,       // p4 每回合魔法段数：2 或 3
   bestStreak: 0,     // 单段(主页)最佳连击
   bestStreakP4: 0,   // 双段(p4)最佳连击
 };

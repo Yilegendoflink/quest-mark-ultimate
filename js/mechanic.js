@@ -50,42 +50,44 @@ function makeThunderRound(displayTrue) {
 }
 
 /**
- * p4 双段机制出题。
- * 第一轮：单一属性(冰或雷)，随机真假；第二轮：冰雷皆出，对第一轮属性套用同真规则
- * （effective = 上轮真假 === 本轮该环显示真假），另一属性按显示值。
- * 两轮安全区均校验非空。
+ * p4 多段机制出题。
+ * 充能段(charges)：每段单一属性(冰或雷)、随机真假。
+ *   - rounds=2：1 段，属性随机；
+ *   - rounds=3：2 段，固定一冰一雷、顺序随机。
+ * 放出段(final)：冰雷皆出；对“出现过充能段”的属性套用同真规则
+ *   （effective = 该属性充能段真假 === 放出段该环显示真假），未充能属性按显示值。
+ * 各段安全区均校验非空。
  * @returns {{
- *   wave1:{ attr:'ice'|'thunder', round, displayTrue },
- *   wave2:{ round, iceDisplayTrue, thunderDisplayTrue }
+ *   charges: Array<{ attr:'ice'|'thunder', round, displayTrue }>,
+ *   final: { round, iceDisplayTrue, thunderDisplayTrue }
  * }}
  */
-export function generateP4Round(arena, minSafeRatio = 0.05) {
+export function generateP4Round(arena, rounds = 2, minSafeRatio = 0.05) {
   let last;
-  for (let i = 0; i < 80; i++) {
-    const attr = coin() ? 'ice' : 'thunder';
-    const wave1True = coin();
-    const wave1Round = attr === 'ice' ? makeIceRound(wave1True) : makeThunderRound(wave1True);
+  for (let i = 0; i < 100; i++) {
+    const chargeAttrs = rounds >= 3
+      ? (coin() ? ['ice', 'thunder'] : ['thunder', 'ice'])
+      : [coin() ? 'ice' : 'thunder'];
+    const charges = chargeAttrs.map((attr) => {
+      const displayTrue = coin();
+      const round = attr === 'ice' ? makeIceRound(displayTrue) : makeThunderRound(displayTrue);
+      return { attr, round, displayTrue };
+    });
 
     const iceSet = pick(ICE_PAIRS).slice();
     const slant = coin() ? 1 : -1;
     const thunderSet = pick(THUNDER_PAIRS).slice();
     const iceDisplayTrue = coin();
     const thunderDisplayTrue = coin();
-    // 同真规则：对第一轮属性 (上轮 === 本轮显示)，另一属性 = 显示值。
-    const iceEffTrue = attr === 'ice' ? wave1True === iceDisplayTrue : iceDisplayTrue;
-    const thunderEffTrue = attr === 'thunder' ? wave1True === thunderDisplayTrue : thunderDisplayTrue;
-    const wave2Round = { iceSet, slant, thunderSet, iceTrue: iceEffTrue, thunderTrue: thunderEffTrue };
+    const iceCharge = charges.find((c) => c.attr === 'ice');
+    const thunderCharge = charges.find((c) => c.attr === 'thunder');
+    const iceEffTrue = iceCharge ? iceCharge.displayTrue === iceDisplayTrue : iceDisplayTrue;
+    const thunderEffTrue = thunderCharge ? thunderCharge.displayTrue === thunderDisplayTrue : thunderDisplayTrue;
+    const finalRound = { iceSet, slant, thunderSet, iceTrue: iceEffTrue, thunderTrue: thunderEffTrue };
 
-    last = {
-      wave1: { attr, round: wave1Round, displayTrue: wave1True },
-      wave2: { round: wave2Round, iceDisplayTrue, thunderDisplayTrue },
-    };
-    if (
-      safeAreaRatio(wave1Round, arena) >= minSafeRatio &&
-      safeAreaRatio(wave2Round, arena) >= minSafeRatio
-    ) {
-      return last;
-    }
+    last = { charges, final: { round: finalRound, iceDisplayTrue, thunderDisplayTrue } };
+    const chargesOk = charges.every((c) => safeAreaRatio(c.round, arena) >= minSafeRatio);
+    if (chargesOk && safeAreaRatio(finalRound, arena) >= minSafeRatio) return last;
   }
   return last;
 }

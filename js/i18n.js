@@ -42,6 +42,9 @@ export const I18N = {
     memName: '记忆小游戏', memSub: '增加信息记忆压力',
     memQuestion: '房间里现在有几个人？',
     memFail: '✗ 数错了！',
+    roundsLabel: '轮数',
+    rounds2: '2轮', rounds2Sub: '1储存·1放出',
+    rounds3: '3轮', rounds3Sub: '2储存·1放出',
     comments: {
       green: '真棒！恭喜你——错得漂亮！',
       blue: '居然还活着，真是不可置信！',
@@ -89,6 +92,9 @@ export const I18N = {
     memName: '記憶ミニゲーム', memSub: '情報記憶の負荷を増加させる',
     memQuestion: '今、部屋には何人いる？',
     memFail: '✗ 数え間違い！',
+    roundsLabel: 'ラウンド数',
+    rounds2: '2段', rounds2Sub: '1チャージ·1アウト',
+    rounds3: '3段', rounds3Sub: '2チャージ·1アウト',
     comments: {
       green: 'おめでとうゴザイマセンデシタ！',
       blue: 'まだ生きてるなんて、シンジラレナーイ！',
@@ -136,6 +142,9 @@ export const I18N = {
     memName: 'Memory Game', memSub: 'Increase information memory load',
     memQuestion: 'How many people are in the room now?',
     memFail: '✗ Miscounted!',
+    roundsLabel: 'Waves',
+    rounds2: '2 Waves', rounds2Sub: '1 charge·1 release',
+    rounds3: '3 Waves', rounds3Sub: '2 charge·1 release',
     comments: {
       green: 'Congratulations... you lose!',
       blue: 'Still alive? Unbelieeevable!',
